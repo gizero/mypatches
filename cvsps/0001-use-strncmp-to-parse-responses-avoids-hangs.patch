@@ -1,0 +1,35 @@
+From a14d880b6d552abade258908b7a4cc0e26489f75 Mon Sep 17 00:00:00 2001
+From: Andrea Galbusera <gizero@gmail.com>
+Date: Sat, 20 Oct 2012 23:06:27 +0200
+Subject: [PATCH] use strncmp() to parse responses avoids hangs
+
+According to CVS client/server protocol documentation responses like
+'ok' or 'error' come with a space character before '\n'. Since read_line()
+returns the response with only '\n' stripped out, using strcmp() against the
+string "error" in cvs_rlog_fgets fails to detect errors from the server.
+This leads, under some circumstances, cvsps to indefinitely hang, i.e. when
+an invalid cvs module path is passed to rlog.
+Using strncmp() when cheching for either 'error' or 'ok' makes the test safe.
+The same approach is already used in ctx_to_fp().
+
+Signed-off-by: Andrea Galbusera <gizero@gmail.com>
+---
+ cvs_direct.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cvs_direct.c b/cvs_direct.c
+index 920487d..7ff9ae3 100644
+--- a/cvs_direct.c
++++ b/cvs_direct.c
+@@ -892,7 +892,7 @@ char * cvs_rlog_fgets(char * buff, int buflen, CvsServerCtx * ctx)
+     {
+ 	debug(DEBUG_APPMSG1, "%s", lbuff + 2);
+     }
+-    else if (strcmp(lbuff, "ok") == 0 ||strcmp(lbuff, "error") == 0)
++    else if (strncmp(lbuff, "ok", 2) == 0 || strncmp(lbuff, "error", 5) == 0)
+     {
+ 	debug(DEBUG_TCP, "cvs_direct: rlog: got command completion");
+ 	return NULL;
+-- 
+1.7.9.5
+
